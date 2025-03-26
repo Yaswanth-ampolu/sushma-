@@ -1,0 +1,21 @@
+# Spring Test Sequence
+# Created: 2025-03-26 19:18:25
+# prompt: Generated sequence
+Row,CMD,Description,Condition,Unit,Tolerance,Speed rpm
+R00,ZF,Zero Force,,,,
+R01,TH,Search Contact,10,N,,10
+R02,FL(P),Measure Free Length-Position,,mm,"58.0(57.0,59.0)",
+R03,Mv(P),Move to Position L1,40.0,mm,,50
+R04,Mv(P),Move to Position L2,33.0,mm,,50
+R05,Scrag,Scragging,"R04,2",,,
+R06,Mv(P),Return to Free Length,58.0,mm,,50
+R07,TH,Search Contact,10,N,,10
+R08,FL(P),Measure Free Length-Position,,mm,"58.0(57.0,59.0)",
+R09,Mv(P),Move to Position L1,40.0,mm,,50
+R10,Fr(P),Force @ Position L1,,N,"23.6(21.24,25.96)",
+R11,Mv(P),Move to Position L2,33.0,mm,,50
+R12,Fr(P),Force @ Position L2,,N,"34.14(30.73,37.55)",
+R13,Mv(P),Move to Position L3,28.0,mm,,50
+R14,Fr(P),Force @ Position L3,,N,"42.36(38.12,46.60)",
+R15,Mv(P),Return to Free Length,58.0,mm,,50
+R16,PMsg,User Message,Test Completed,,,
