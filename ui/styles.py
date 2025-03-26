@@ -203,6 +203,60 @@ QWidget#ChatResultsPanel {
     background-color: #FFFFFF;
     border-radius: 5px;
 }
+
+/* Collapsible Sidebar Styling */
+QWidget#SidebarToggleContainer {
+    background-color: #E0E0E0;
+    border-right: 1px solid #CCCCCC;
+}
+
+QToolButton#SidebarToggleButton {
+    background-color: #4285F4;
+    border-radius: 15px;
+    border: none;
+    color: white;
+    padding: 4px;
+}
+
+QToolButton#SidebarToggleButton:hover {
+    background-color: #5294FF;
+}
+
+QToolButton#SidebarToggleButton:pressed {
+    background-color: #3060C0;
+}
+
+QMenu {
+    background-color: white;
+    border: 1px solid #CCCCCC;
+    padding: 5px;
+}
+
+QMenu::item {
+    padding: 5px 25px 5px 20px;
+    border-radius: 3px;
+}
+
+QMenu::item:selected {
+    background-color: #E0E0FF;
+    color: #333333;
+}
+
+QMenu::separator {
+    height: 1px;
+    background-color: #CCCCCC;
+    margin: 5px 10px;
+}
+
+QFrame#SidebarContentContainer {
+    background-color: #FFFFFF;
+    border-left: 1px solid #CCCCCC;
+}
+
+/* Chat panel with sidebar */
+QWidget#ChatPanelWithSidebar {
+    background-color: #F0F0F0;
+}
 """
 
 def get_style_sheet():

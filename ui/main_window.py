@@ -13,8 +13,7 @@ from utils.constants import APP_TITLE, APP_VERSION, APP_WINDOW_SIZE
 from models.data_models import TestSequence
 
 # These will be implemented in separate files
-from ui.chat_panel import ChatPanel
-from ui.results_panel import ResultsPanel
+from ui.chat_results_container import ChatResultsContainer
 from ui.specifications_panel import SpecificationsPanel
 
 
@@ -58,37 +57,25 @@ class MainWindow(QMainWindow):
         # Create the central widget and layout
         central_widget = QWidget()
         main_layout = QVBoxLayout()
-        
-        # Create main content area
-        main_content = QWidget()
-        content_layout = QVBoxLayout()
-        
-        # Create tab widget for main content
-        self.tab_widget = QTabWidget()
+        main_layout.setContentsMargins(0, 0, 0, 0)
         
         # Create content panels
-        self.chat_panel = ChatPanel(self.chat_service, self.sequence_generator)
-        self.results_panel = ResultsPanel(self.export_service)
-        self.specs_panel = SpecificationsPanel(self.settings_service, self.sequence_generator, self.chat_service)
+        self.chat_results_container = ChatResultsContainer(
+            self.chat_service, 
+            self.sequence_generator,
+            self.export_service
+        )
+        self.specs_panel = SpecificationsPanel(
+            self.settings_service, 
+            self.sequence_generator, 
+            self.chat_service
+        )
         
-        # Create chat+results container
-        chat_results_container = QWidget()
-        chat_results_layout = QHBoxLayout()
-        chat_results_layout.addWidget(self.chat_panel, 1)
-        chat_results_layout.addWidget(self.results_panel, 1)
-        chat_results_container.setLayout(chat_results_layout)
+        # Add specifications panel to the sidebar
+        self.chat_results_container.sidebar.add_specifications_panel(self.specs_panel)
         
-        # Add tabs
-        self.tab_widget.addTab(chat_results_container, "Chat & Results")
-        self.tab_widget.addTab(self.specs_panel, "Specifications")
-        
-        # Add tab widget to content layout
-        content_layout.addWidget(self.tab_widget)
-        
-        main_content.setLayout(content_layout)
-        
-        # Add main content to main layout
-        main_layout.addWidget(main_content)
+        # Add chat results container to main layout
+        main_layout.addWidget(self.chat_results_container)
         
         # Set the central widget
         central_widget.setLayout(main_layout)
@@ -99,8 +86,8 @@ class MainWindow(QMainWindow):
     
     def connect_signals(self):
         """Connect signals and slots."""
-        # Connect chat panel signals
-        self.chat_panel.sequence_generated.connect(self.on_sequence_generated)
+        # Connect chat results container signals
+        self.chat_results_container.sequence_generated.connect(self.on_sequence_generated)
         
         # Connect specifications panel signals
         self.specs_panel.specifications_changed.connect(self.on_specifications_changed)
@@ -119,7 +106,7 @@ class MainWindow(QMainWindow):
         # Only validate the API key if it's not empty
         if api_key.strip():
             # Validate the API key
-            self.chat_panel.validate_api_key()
+            self.chat_results_container.validate_api_key()
     
     def on_clear_chat(self):
         """Handle clear chat button clicks."""
@@ -127,7 +114,7 @@ class MainWindow(QMainWindow):
         self.chat_service.clear_history()
         
         # Update chat panel
-        self.chat_panel.refresh_chat_display()
+        self.chat_results_container.refresh_chat_display()
     
     def on_sequence_generated(self, sequence):
         """Handle sequence generation.
@@ -135,8 +122,9 @@ class MainWindow(QMainWindow):
         Args:
             sequence: Generated sequence.
         """
-        # Show the sequence in the results panel
-        self.results_panel.display_sequence(sequence)
+        # The sequence is already displayed in the sidebar
+        # No need to do anything here
+        pass
     
     def on_specifications_changed(self, specifications):
         """Handle specifications changes.

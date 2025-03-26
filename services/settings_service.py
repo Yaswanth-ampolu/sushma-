@@ -31,10 +31,21 @@ class SettingsService:
     
     def __init__(self):
         """Initialize the settings service."""
-        self.settings = DEFAULT_SETTINGS.copy()
-        self.settings_dir = self._ensure_data_dir()
-        self.settings_file = os.path.join(self.settings_dir, "settings.dat")
-        self.encryption_key = self._generate_key()
+        # Set up default settings
+        self.settings = {
+            "api_key": "",
+            "theme": "light",
+            "spring_specification": None
+        }
+        
+        # Path to settings file
+        data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "appdata")
+        self.settings_file = os.path.join(data_dir, "settings.dat")
+        
+        # Create the appdata directory if it doesn't exist
+        os.makedirs(data_dir, exist_ok=True)
+        
+        # Load settings from file
         self.load_settings()
         
         # Initialize spring specification if it doesn't exist
@@ -82,7 +93,7 @@ class SettingsService:
                 encrypted_data = f.read()
             
             # Decrypt data
-            fernet = Fernet(self.encryption_key)
+            fernet = Fernet(self._generate_key())
             decrypted_data = fernet.decrypt(encrypted_data)
             
             # Parse JSON
@@ -98,14 +109,15 @@ class SettingsService:
         """Save settings to disk."""
         try:
             # Ensure the settings directory exists
-            if not os.path.exists(self.settings_dir):
-                os.makedirs(self.settings_dir)
+            data_dir = os.path.dirname(self.settings_file)
+            if not os.path.exists(data_dir):
+                os.makedirs(data_dir)
                 
             # Convert settings to JSON
             settings_json = json.dumps(self.settings, indent=2)
             
             # Encrypt data
-            fernet = Fernet(self.encryption_key)
+            fernet = Fernet(self._generate_key())
             encrypted_data = fernet.encrypt(settings_json.encode('utf-8'))
             
             # Write encrypted data

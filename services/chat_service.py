@@ -6,6 +6,7 @@ import os
 import json
 import base64
 import logging
+import pickle
 from typing import List, Optional
 from models.data_models import ChatMessage
 from cryptography.fernet import Fernet
@@ -30,9 +31,15 @@ class ChatService:
         self.history = []
         self.max_history = max_history
         self.settings_service = settings_service
-        self.data_dir = self._ensure_data_dir()
-        self.history_file = os.path.join(self.data_dir, "chat_history.dat")
-        self.encryption_key = self._generate_key()
+        
+        # Path to chat history file
+        data_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "appdata")
+        self.history_file = os.path.join(data_dir, "chat_history.dat")
+        
+        # Create the data directory if it doesn't exist
+        os.makedirs(data_dir, exist_ok=True)
+        
+        # Load chat history
         self.load_history()
     
     def _ensure_data_dir(self):
@@ -111,72 +118,67 @@ class ChatService:
                 return
             
             # Decrypt data
-            fernet = Fernet(self.encryption_key)
+            fernet = Fernet(self._generate_key())
             decrypted_data = fernet.decrypt(encrypted_data)
             
-            # Parse JSON
-            history_data = json.loads(decrypted_data.decode('utf-8'))
-            
-            if not isinstance(history_data, list):
-                logging.warning("Chat history is not a list, using empty history")
-                return
-            
-            # Convert to ChatMessage objects
-            self.history = [
-                ChatMessage(role=msg.get("role", "assistant"), content=msg.get("content", ""))
-                for msg in history_data if "content" in msg
-            ]
-            
-            logging.info(f"Loaded {len(self.history)} chat messages")
+            # Try to parse as pickle first (new format)
+            try:
+                history_data = pickle.loads(decrypted_data)
+                if isinstance(history_data, list):
+                    self.history = history_data
+                    logging.info(f"Loaded {len(self.history)} chat messages from pickle format")
+                    return
+            except Exception as pickle_error:
+                logging.warning(f"Could not parse chat history as pickle: {str(pickle_error)}")
+                
+            # Fall back to JSON format (old format)
+            try:
+                history_data = json.loads(decrypted_data.decode('utf-8'))
+                
+                if not isinstance(history_data, list):
+                    logging.warning("Chat history is not a list, using empty history")
+                    return
+                
+                # Convert to ChatMessage objects
+                self.history = [
+                    ChatMessage(role=msg.get("role", "assistant"), content=msg.get("content", ""))
+                    for msg in history_data if "content" in msg
+                ]
+                
+                logging.info(f"Loaded {len(self.history)} chat messages from JSON format")
+            except Exception as json_error:
+                logging.warning(f"Could not parse chat history as JSON: {str(json_error)}")
+                raise Exception(f"Failed to parse chat history in any supported format")
+                
         except Exception as e:
             logging.error(f"Error loading chat history: {str(e)}")
             self.history = []
     
-    def save_history(self) -> None:
-        """Save chat history to file."""
+    def save_history(self):
+        """Save chat history to disk."""
         try:
             # Ensure the data directory exists
-            if not os.path.exists(self.data_dir):
-                os.makedirs(self.data_dir)
-                
-            # Skip if history is empty
-            if not self.history:
-                logging.info("No chat history to save")
-                # Create empty file if it doesn't exist
-                if not os.path.exists(self.history_file):
-                    with open(self.history_file, "wb") as f:
-                        pass
-                return
+            data_dir = os.path.dirname(self.history_file)
+            if not os.path.exists(data_dir):
+                os.makedirs(data_dir)
             
-            # Convert to JSON-serializable format
-            history_data = [
-                {"role": msg.role, "content": msg.content}
-                for msg in self.history
-            ]
+            # Serialize the history (limited to max_history)
+            history_data = self.history[-self.max_history:]
+            serialized = pickle.dumps(history_data)
             
-            # Convert to JSON
-            history_json = json.dumps(history_data, indent=2)
+            # Encrypt the data
+            fernet = Fernet(self._generate_key())
+            encrypted_data = fernet.encrypt(serialized)
             
-            # Encrypt data
-            fernet = Fernet(self.encryption_key)
-            encrypted_data = fernet.encrypt(history_json.encode('utf-8'))
-            
-            # Write encrypted data
+            # Write to file
             with open(self.history_file, "wb") as f:
                 f.write(encrypted_data)
-            
-            logging.info(f"Saved {len(self.history)} chat messages")
+                
+            logging.info("Chat history saved successfully")
+            return True
         except Exception as e:
-            logging.error(f"Error saving chat history: {str(e)}")
-            # Try to create an empty file if we can't save
-            try:
-                if not os.path.exists(self.data_dir):
-                    os.makedirs(self.data_dir)
-                with open(self.history_file, "wb") as f:
-                    pass
-            except Exception as inner_e:
-                logging.error(f"Failed to create empty history file: {str(inner_e)}")
-                pass
+            logging.error(f"Error saving chat history: {e}")
+            return False
     
     def get_message(self, index: int) -> Optional[ChatMessage]:
         """Get a message from the chat history.

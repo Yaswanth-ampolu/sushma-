@@ -128,18 +128,20 @@ class ChatPanel(QWidget):
         button_layout.setSpacing(10)
         
         # Send button with icon
-        self.generate_btn = QPushButton(" Send Message")
-        self.generate_btn.setIcon(QIcon("resources/send_icon.png"))
-        self.generate_btn.setIconSize(QSize(20, 20))
+        self.generate_btn = QPushButton("Send")
+        self.generate_btn.setIcon(QIcon("resources/sendbutton.svg"))
+        self.generate_btn.setIconSize(QSize(22, 22))
         self.generate_btn.clicked.connect(self.on_send_clicked)
         self.generate_btn.setMinimumHeight(40)
+        self.generate_btn.setMinimumWidth(120)
         self.generate_btn.setStyleSheet("""
             QPushButton {
                 background-color: #4285F4;
                 color: white;
                 border-radius: 20px;
-                padding: 8px 15px;
+                padding: 8px 15px 8px 8px;
                 font-weight: bold;
+                font-size: 14px;
                 text-align: center;
             }
             QPushButton:hover {

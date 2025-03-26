@@ -48,7 +48,15 @@ class SetPointWidget(QGroupBox):
     
     def init_ui(self):
         """Initialize the UI."""
-        layout = QFormLayout()
+        # Use a more compact layout
+        layout = QVBoxLayout()
+        layout.setSpacing(5)
+        layout.setContentsMargins(10, 10, 10, 10)
+        
+        # Form layout for inputs
+        form_layout = QFormLayout()
+        form_layout.setSpacing(5)
+        form_layout.setContentsMargins(0, 0, 0, 0)
         
         # Position input
         self.position_input = QDoubleSpinBox()
@@ -57,7 +65,7 @@ class SetPointWidget(QGroupBox):
         self.position_input.setSuffix(" mm")
         self.position_input.setDecimals(2)
         self.position_input.valueChanged.connect(self.on_position_changed)
-        layout.addRow("Position:", self.position_input)
+        form_layout.addRow("Position:", self.position_input)
         
         # Load input
         self.load_input = QDoubleSpinBox()
@@ -66,7 +74,7 @@ class SetPointWidget(QGroupBox):
         self.load_input.setSuffix(" N")
         self.load_input.setDecimals(2)
         self.load_input.valueChanged.connect(self.on_load_changed)
-        layout.addRow("Load:", self.load_input)
+        form_layout.addRow("Load:", self.load_input)
         
         # Tolerance input
         self.tolerance_input = QDoubleSpinBox()
@@ -75,18 +83,29 @@ class SetPointWidget(QGroupBox):
         self.tolerance_input.setSuffix(" %")
         self.tolerance_input.setDecimals(1)
         self.tolerance_input.valueChanged.connect(self.on_tolerance_changed)
-        layout.addRow("Tolerance:", self.tolerance_input)
+        form_layout.addRow("Tolerance:", self.tolerance_input)
+        
+        layout.addLayout(form_layout)
+        
+        # Controls in a horizontal layout
+        controls_layout = QHBoxLayout()
         
         # Enabled checkbox
         self.enabled_checkbox = QCheckBox("Enabled")
         self.enabled_checkbox.setChecked(self.set_point.enabled)
         self.enabled_checkbox.stateChanged.connect(self.on_enabled_changed)
-        layout.addRow("", self.enabled_checkbox)
+        controls_layout.addWidget(self.enabled_checkbox)
+        
+        # Add spacer
+        controls_layout.addStretch()
         
         # Delete button
-        self.delete_button = QPushButton("Delete Set Point")
+        self.delete_button = QPushButton("Delete")
+        self.delete_button.setMaximumWidth(80)
         self.delete_button.clicked.connect(self.on_delete_clicked)
-        layout.addRow("", self.delete_button)
+        controls_layout.addWidget(self.delete_button)
+        
+        layout.addLayout(controls_layout)
         
         self.setLayout(layout)
     
@@ -192,8 +211,18 @@ class SpecificationsPanel(QWidget):
         # Tabs
         tabs = QTabWidget()
         
-        # Basic info tab
-        basic_info_tab = QWidget()
+        # Combined Info & Set Points tab
+        combined_tab = QWidget()
+        combined_layout = QVBoxLayout()
+        
+        # Create scroll area for the combined tab
+        combined_scroll = QScrollArea()
+        combined_scroll.setWidgetResizable(True)
+        combined_scroll_content = QWidget()
+        combined_scroll_layout = QVBoxLayout(combined_scroll_content)
+        
+        # Basic info section
+        basic_info_group = QGroupBox("Basic Info")
         basic_info_layout = QFormLayout()
         
         # Part name input
@@ -261,7 +290,36 @@ class SpecificationsPanel(QWidget):
         self.enabled_checkbox.stateChanged.connect(self.on_enabled_changed)
         basic_info_layout.addRow("", self.enabled_checkbox)
         
-        basic_info_tab.setLayout(basic_info_layout)
+        basic_info_group.setLayout(basic_info_layout)
+        combined_scroll_layout.addWidget(basic_info_group)
+        
+        # Separator line
+        separator = QFrame()
+        separator.setFrameShape(QFrame.HLine)
+        separator.setFrameShadow(QFrame.Sunken)
+        combined_scroll_layout.addWidget(separator)
+        
+        # Set Points section
+        set_points_group = QGroupBox("Set Points")
+        set_points_layout = QVBoxLayout()
+        
+        # Container for set points
+        set_points_container = QWidget()
+        self.set_points_layout = QVBoxLayout(set_points_container)
+        set_points_layout.addWidget(set_points_container)
+        
+        # Add set point button
+        add_button = QPushButton("Add Set Point")
+        add_button.clicked.connect(self.on_add_set_point)
+        set_points_layout.addWidget(add_button)
+        
+        set_points_group.setLayout(set_points_layout)
+        combined_scroll_layout.addWidget(set_points_group)
+        
+        # Finalize combined tab
+        combined_scroll.setWidget(combined_scroll_content)
+        combined_layout.addWidget(combined_scroll)
+        combined_tab.setLayout(combined_layout)
         
         # Settings tab - new
         settings_tab = QWidget()
@@ -325,8 +383,7 @@ class SpecificationsPanel(QWidget):
         settings_tab.setLayout(settings_layout)
         
         # Add tabs to tab widget
-        tabs.addTab(basic_info_tab, "Basic Info")
-        tabs.addTab(self.create_set_points_tab(), "Set Points")
+        tabs.addTab(combined_tab, "Specifications")
         tabs.addTab(self.create_text_input_tab(), "Paste Specifications")
         tabs.addTab(settings_tab, "Settings")
         
@@ -969,27 +1026,6 @@ class SpecificationsPanel(QWidget):
         # Emit signal
         self.clear_chat_clicked.emit()
 
-    def create_set_points_tab(self):
-        """Create the set points tab."""
-        set_points_tab = QWidget()
-        set_points_layout = QVBoxLayout()
-        
-        # Scroll area for set points
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_content = QWidget()
-        self.set_points_layout = QVBoxLayout(scroll_content)
-        scroll_area.setWidget(scroll_content)
-        set_points_layout.addWidget(scroll_area)
-        
-        # Add set point button
-        add_button = QPushButton("Add Set Point")
-        add_button.clicked.connect(self.on_add_set_point)
-        set_points_layout.addWidget(add_button)
-        
-        set_points_tab.setLayout(set_points_layout)
-        return set_points_tab
-    
     def create_text_input_tab(self):
         """Create the text input tab."""
         text_input_tab = QWidget()
