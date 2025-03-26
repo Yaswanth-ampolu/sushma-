@@ -1,0 +1,20 @@
+                    SPRING SPECIFICATIONS REPORT
+
+PART NAME:      Demo Spring
+PART NUMBER:    Demo Spring-1
+ID:             28
+Free Length:    58 mm
+No of Coils:    7.5
+Wire Diameter:  3 mm
+OD:             32 mm
+
+Set Point-1:    40 mm
+Set Point-1 Load In N:    23.6±10% N
+
+Set Point-2:    33 mm  
+Set Point-2 Load In N:    34.14±10% N
+
+Set Point-3:    28 mm
+Set Point-3 Load In N:    42.36±10% N
+
+Safety limit:   300 N 

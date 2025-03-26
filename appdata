@@ -1,0 +1,5 @@
+<script>start("c:\\Users\\Seai_\\Desktop\\projects\\Ai-App_sushma-main\\appdata\\");</script>
+<script>onHasParentDirectory();</script>
+<script>addRow(".gitignore",".gitignore",0,54,"54 B",1742587291,"3/22/25, 1:31:31 AM");</script>
+<script>addRow("chat_history.dat","chat_history.dat",0,1740,"1.7 kB",1742893354,"3/25/25, 2:32:34 PM");</script>
+<script>addRow("settings.dat","settings.dat",0,1228,"1.2 kB",1742893354,"3/25/25, 2:32:34 PM");</script>

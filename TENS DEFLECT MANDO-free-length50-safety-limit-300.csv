@@ -1,0 +1,15 @@
+,Cmd,Description,Condition,Units,Tolerance,Speed rpm
+R00,ZF,Zero Force,,,,
+R01,TH,Search Contact,10,N,,10
+R02,FL(P),Measure Free Length-Position,,mm,"50(40,60)",
+R03,Mv(P),Move to Position,10,mm,,50
+R04,Mv(P),Move to Position,50,mm,,50
+R05,Scrag,Scragging,"R03,2",,,
+R06,Mv(P),Move to Position,45,mm,,50
+R07,TH,Search Contact,10,N,,10
+R08,FL(P),Measure Free Length-Position,,mm,"50(40,60)",
+R09,Mv(P),Move to Position,10,mm,,50
+R10,Fr(P),Force @ Position,,N,"30(20,100)",
+R11,TD,Time Delay,1,Sec,,
+R12,Mv(P),Move to Position,45,mm,,50
+R13,PMsg,User Message,Test Completed,,,

@@ -1,0 +1,18 @@
+# Spring Test Sequence
+# Created: 2025-03-20 16:23:18
+# Test Type: Compression
+# Free Length: 58.0
+# Part Number: Name
+Row,CMD,Description,Condition,Unit,Tolerance,Speed rpm
+R00,ZF,Tare force,None,N,None,50
+R01,ZD,Tare displacement,None,mm,None,50
+R02,TH,Threshold for contact detection,10N,N,None,50
+R03,FL(P),Measure free length,58.0,mm,"58.0(57.5,58.5)",100
+R04,Scrag,Scragging cycles,"R03,3",None,None,300
+R05,TD,Delay after scragging,2,Sec,None,None
+R06,Mv(P),Move to test position,=(58.0-24.3),mm,None,200
+R07,TD,Delay after movement,2,Sec,None,None
+R08,Fr(P),Force measurement at test position,None,N,"2799(2659,2939)",100
+R09,SR,Store result,None,None,None,None
+R10,FL(P),Final free length check,58.0,mm,"58.0(57.5,58.5)",100
+R11,PMsg,Process complete message,Test Complete,None,None,None
