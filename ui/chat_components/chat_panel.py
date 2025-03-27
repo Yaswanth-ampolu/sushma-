@@ -5,8 +5,10 @@ Main chat interface with message display and controls.
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, QTextEdit, 
                            QPushButton, QMessageBox, QProgressBar, QSplitter, QFrame,
                            QSizePolicy)
-from PyQt5.QtCore import Qt, pyqtSignal, pyqtSlot, QTimer, QSize
-from PyQt5.QtGui import QIcon, QMovie
+from PyQt5.QtCore import (Qt, pyqtSignal, pyqtSlot, QTimer, QSize, pyqtProperty, 
+                         QPropertyAnimation)
+from PyQt5.QtGui import QIcon, QMovie, QTransform, QPixmap
+from PyQt5.QtSvg import QSvgWidget
 import pandas as pd
 from datetime import datetime
 import re
@@ -31,6 +33,9 @@ class ChatPanel(QWidget):
         """
         super().__init__()
         
+        # Enable transparency for the widget
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        
         # Store services
         self.chat_service = chat_service
         self.sequence_generator = sequence_generator
@@ -54,125 +59,327 @@ class ChatPanel(QWidget):
         """Initialize the UI."""
         # Main layout
         layout = QVBoxLayout()
-        layout.setContentsMargins(10, 10, 10, 10)
-        layout.setSpacing(10)
+        layout.setContentsMargins(0, 0, 0, 0)  # Remove margins for full-width content
+        layout.setSpacing(0)  # Remove spacing between components
+        
+        # Create a main content widget with padding
+        content_widget = QWidget()
+        content_widget.setObjectName("ContentWidget")
+        content_layout = QVBoxLayout(content_widget)
+        content_layout.setContentsMargins(16, 16, 16, 16)
+        content_layout.setSpacing(16)
+        
+        # Apply transparency to the content widget
+        content_widget.setStyleSheet("""
+            #ContentWidget {
+                background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+                                      stop:0 rgba(255, 255, 255, 0.7),
+                                      stop:1 rgba(240, 240, 255, 0.8));
+                border-radius: 12px;
+                border: 1px solid rgba(255, 255, 255, 0.8);
+            }
+        """)
         
         # Chat panel title
-        title_label = QLabel("Spring Test Chat Assistant")
-        title_label.setFont(title_label.font())
-        title_label.font().setPointSize(12)
-        title_label.font().setBold(True)
-        layout.addWidget(title_label)
+        title_layout = QHBoxLayout()
+        title_layout.setContentsMargins(0, 0, 0, 8)
+        
+        # Replace the text title with the Sushma logo
+        logo_widget = QSvgWidget("resources/Sushma_logo-722x368.svg")
+        logo_widget.setObjectName("LogoWidget")
+        logo_widget.setFixedSize(200, 100)
+        logo_widget.setStyleSheet("""
+            #LogoWidget {
+                background-color: transparent;
+                margin-bottom: 10px;
+            }
+        """)
+        title_layout.addWidget(logo_widget)
+        title_layout.setAlignment(Qt.AlignLeft)
+        
+        # Add the title layout to the content layout
+        content_layout.addLayout(title_layout)
+        
+        # Create a frame for the chat display
+        chat_frame = QFrame()
+        chat_frame.setObjectName("ChatDisplayFrame")
+        chat_frame.setFrameShape(QFrame.NoFrame)
+        chat_frame.setStyleSheet("""
+            #ChatDisplayFrame {
+                background-color: transparent;
+                border-radius: 12px;
+                border: none;
+            }
+        """)
+        
+        chat_layout = QVBoxLayout(chat_frame)
+        chat_layout.setContentsMargins(0, 0, 0, 0)
+        chat_layout.setSpacing(0)
         
         # Chat display with bubble styling
         self.chat_display = ChatBubbleDisplay(self)
-        layout.addWidget(self.chat_display, 1)  # Give it stretch factor 1
+        chat_layout.addWidget(self.chat_display)
         
-        # Progress section frame - wrap in a fixed-height frame
-        progress_frame = QFrame()
-        progress_frame.setFrameShape(QFrame.StyledPanel)
-        progress_frame.setFixedHeight(50)  # Set a fixed height
-        progress_frame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        # Add the chat frame to the content layout with stretch
+        content_layout.addWidget(chat_frame, 1)  # Give it stretch factor 1
         
-        progress_layout = QHBoxLayout(progress_frame)
-        progress_layout.setContentsMargins(5, 5, 5, 5)
-        progress_layout.setSpacing(5)
+        # Create a container for the input area (to manage positioning)
+        input_container = QWidget()
+        input_container.setObjectName("InputContainer")
+        input_container.setContentsMargins(0, 0, 0, 0)
+        input_container.setFixedHeight(60)  # Fixed height for the input container
         
-        # Progress bar 
-        self.progress_bar = QProgressBar()
-        self.progress_bar.setRange(0, 100)
-        self.progress_bar.setValue(0)
-        self.progress_bar.setTextVisible(True)
-        self.progress_bar.setFormat("%p% - %v")
-        progress_layout.addWidget(self.progress_bar, 1)
+        # Style the input container
+        input_container.setStyleSheet("""
+            #InputContainer {
+                background-color: transparent;
+            }
+        """)
         
-        # Loading animation
-        self.loading_label = QLabel()
-        self.loading_movie = QMovie("resources/loading.gif")
-        self.loading_movie.setScaledSize(QSize(24, 24))
-        self.loading_label.setMovie(self.loading_movie)
-        self.loading_label.setFixedSize(24, 24)
-        progress_layout.addWidget(self.loading_label)
+        # Input container layout
+        input_layout = QHBoxLayout(input_container)
+        input_layout.setContentsMargins(0, 0, 0, 0)
+        input_layout.setSpacing(12)
+        
+        # Create a frame for the floating input area
+        input_frame = QFrame()
+        input_frame.setObjectName("InputFrame")
+        
+        # Style the input frame to look like a floating element
+        input_frame.setStyleSheet("""
+            #InputFrame {
+                background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+                                    stop:0 rgba(255, 255, 255, 0.7),
+                                    stop:1 rgba(255, 255, 255, 0.85));
+                border: 1px solid rgba(255, 255, 255, 0.8);
+                border-radius: 24px;
+            }
+            #InputFrame:hover {
+                background-color: rgba(255, 255, 255, 0.9);
+                border: 1px solid rgba(66, 133, 244, 0.3);
+            }
+        """)
+        
+        # Input frame layout
+        input_frame_layout = QHBoxLayout(input_frame)
+        input_frame_layout.setContentsMargins(16, 8, 8, 8)
+        input_frame_layout.setSpacing(8)
+        
+        # Modern text input area
+        self.user_input = QTextEdit()
+        self.user_input.setObjectName("ChatInput")
+        self.user_input.setPlaceholderText("Message Sushma Assistant...")
+        self.user_input.setFixedHeight(40)
+        self.user_input.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        
+        # Style the input text area
+        self.user_input.setStyleSheet("""
+            QTextEdit#ChatInput {
+                border: none;
+                background-color: transparent;
+                padding: 8px 0px;
+                font-size: 14px;
+                color: #202124;
+            }
+            QTextEdit#ChatInput:focus {
+                outline: none;
+            }
+        """)
+        
+        # Add the input text area to the input frame layout
+        input_frame_layout.addWidget(self.user_input, 1)  # Give it stretch factor
+        
+        # Send button with modern icon
+        self.generate_btn = QPushButton()
+        self.generate_btn.setObjectName("SendButton")
+        self.generate_btn.setIcon(QIcon("resources/sendbutton.svg"))
+        self.generate_btn.setIconSize(QSize(20, 20))
+        self.generate_btn.setFixedSize(40, 40)
+        self.generate_btn.setCursor(Qt.PointingHandCursor)
+        self.generate_btn.clicked.connect(self.on_send_clicked)
+        
+        # Style the send button
+        self.generate_btn.setStyleSheet("""
+            QPushButton#SendButton {
+                background-color: #4285F4;
+                border-radius: 20px;
+                border: none;
+                margin: 0;
+                padding: 0;
+            }
+            QPushButton#SendButton:hover {
+                background-color: #5294FF;
+            }
+            QPushButton#SendButton:pressed {
+                background-color: #3060C0;
+            }
+            QPushButton#SendButton:disabled {
+                background-color: #C0C0C0;
+            }
+        """)
+        
+        # Add the send button to the input frame layout
+        input_frame_layout.addWidget(self.generate_btn)
+        
+        # Add the input frame to the input container layout
+        input_layout.addWidget(input_frame)
+        
+        # Add the input container to the content layout
+        content_layout.addWidget(input_container, 0)  # No stretch
+        
+        # Create a container for the progress indicators
+        progress_container = QWidget()
+        progress_container.setObjectName("ProgressContainer")
+        progress_container.setContentsMargins(0, 0, 0, 0)
+        progress_container.setFixedHeight(40)
+        progress_container.hide()  # Initially hidden
+        
+        # Progress container layout
+        progress_layout = QHBoxLayout(progress_container)
+        progress_layout.setContentsMargins(16, 0, 16, 0)
+        progress_layout.setSpacing(12)
+        
+        # Modern loading indicator
+        self.loading_indicator = QFrame()
+        self.loading_indicator.setObjectName("LoadingIndicator")
+        self.loading_indicator.setFixedSize(20, 20)
+        
+        # Style the loading indicator
+        self.loading_indicator.setStyleSheet("""
+            #LoadingIndicator {
+                background-color: transparent;
+                border: 2px solid rgba(66, 133, 244, 0.2);
+                border-top: 2px solid #4285F4;
+                border-radius: 10px;
+            }
+        """)
+        
+        # Create a simpler animation effect without using rotation property
+        self.loading_timer = QTimer(self)
+        self.loading_timer.timeout.connect(self.toggle_loading_indicator)
+        self.loading_state = 0
         
         # Status label
-        self.status_label = QLabel("Ready")
-        self.status_label.setStyleSheet("color: gray; font-style: italic;")
-        self.status_label.setMinimumWidth(100)
-        progress_layout.addWidget(self.status_label, 2)
+        self.status_label = QLabel("Processing your request...")
+        self.status_label.setObjectName("StatusLabel")
+        font = self.status_label.font()
+        font.setPointSize(11)
+        self.status_label.setFont(font)
+        
+        # Style the status label
+        self.status_label.setStyleSheet("""
+            #StatusLabel {
+                color: #5F6368;
+            }
+        """)
         
         # Cancel button
         self.cancel_btn = QPushButton("Cancel")
+        self.cancel_btn.setObjectName("CancelButton")
         self.cancel_btn.clicked.connect(self.on_cancel_clicked)
-        self.cancel_btn.setFixedWidth(80)
+        self.cancel_btn.setCursor(Qt.PointingHandCursor)
+        
+        # Style the cancel button
+        self.cancel_btn.setStyleSheet("""
+            #CancelButton {
+                background-color: transparent;
+                color: #4285F4;
+                border: none;
+                font-size: 12px;
+                padding: 4px 8px;
+            }
+            #CancelButton:hover {
+                text-decoration: underline;
+            }
+        """)
+        
+        # Modern progress bar
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setObjectName("ProgressBar")
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
+        self.progress_bar.setTextVisible(False)
+        self.progress_bar.setFixedHeight(4)
+        
+        # Style the progress bar
+        self.progress_bar.setStyleSheet("""
+            #ProgressBar {
+                background-color: rgba(66, 133, 244, 0.1);
+                border: none;
+                border-radius: 2px;
+            }
+            #ProgressBar::chunk {
+                background-color: #4285F4;
+                border-radius: 2px;
+            }
+        """)
+        
+        # Add the loading indicator and status label to the progress layout
+        progress_layout.addWidget(self.loading_indicator)
+        progress_layout.addWidget(self.status_label, 1)  # Give it stretch
         progress_layout.addWidget(self.cancel_btn)
         
-        # Initially hide progress components but keep the frame
-        self.progress_bar.hide()
-        self.loading_label.hide()
-        self.cancel_btn.hide()
+        # Create a progress bar container
+        progress_bar_container = QWidget()
+        progress_bar_layout = QVBoxLayout(progress_bar_container)
+        progress_bar_layout.setContentsMargins(0, 4, 0, 0)
+        progress_bar_layout.addWidget(self.progress_bar)
         
-        # Add progress frame to main layout
-        layout.addWidget(progress_frame, 0)  # No stretch factor
+        # Add the progress bar container to the content layout
+        content_layout.addWidget(progress_bar_container)
         
-        # Input area with modern styling
-        input_label = QLabel("Enter your request:")
-        input_label.setFont(input_label.font())
-        input_label.font().setPointSize(10)
-        input_label.font().setBold(True)
-        layout.addWidget(input_label, 0)  # No stretch factor
+        # Add the progress container to the content layout
+        content_layout.addWidget(progress_container)
         
-        self.user_input = QTextEdit()
-        self.user_input.setPlaceholderText("Ask a question, chat, or request a test sequence (e.g., 'Generate a test sequence for a compression spring with free length 50mm')")
-        self.user_input.setMinimumHeight(100)
-        self.user_input.setMaximumHeight(150)
+        # Store references to containers for showing/hiding
+        self.progress_container = progress_container
+        self.progress_bar_container = progress_bar_container
         
-        # Style the input area
-        self.user_input.setStyleSheet("""
-            QTextEdit {
-                background-color: #FFFFFF;
-                border-radius: 18px;
-                padding: 10px 15px;
-                border: 1px solid #D1D1D1;
-            }
-        """)
+        # Add the content widget to the main layout
+        layout.addWidget(content_widget, 1)  # Give it stretch
         
-        layout.addWidget(self.user_input, 0)  # No stretch factor
-        
-        # Buttons
-        button_layout = QHBoxLayout()
-        button_layout.setSpacing(10)
-        
-        # Send button with icon
-        self.generate_btn = QPushButton("Send")
-        self.generate_btn.setIcon(QIcon("resources/sendbutton.svg"))
-        self.generate_btn.setIconSize(QSize(22, 22))
-        self.generate_btn.clicked.connect(self.on_send_clicked)
-        self.generate_btn.setMinimumHeight(40)
-        self.generate_btn.setMinimumWidth(120)
-        self.generate_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #4285F4;
-                color: white;
-                border-radius: 20px;
-                padding: 8px 15px 8px 8px;
-                font-weight: bold;
-                font-size: 14px;
-                text-align: center;
-            }
-            QPushButton:hover {
-                background-color: #5294FF;
-            }
-            QPushButton:pressed {
-                background-color: #3060C0;
-            }
-        """)
-        button_layout.addStretch(1)  # Add stretch before button for right alignment
-        button_layout.addWidget(self.generate_btn)
-        
-        layout.addLayout(button_layout, 0)  # No stretch factor
-        
-        # Set the layout
+        # Set the main layout
         self.setLayout(layout)
+        
+        # Style the chat display scrollbar
+        self.chat_display.setStyleSheet("""
+            QWebEngineView {
+                background: transparent;
+            }
+            QScrollBar:vertical {
+                border: none;
+                background: transparent;
+                width: 8px;
+                margin: 12px 2px 12px 2px;
+            }
+            QScrollBar::handle:vertical {
+                background: rgba(66, 133, 244, 0.5);
+                min-height: 40px;
+                border-radius: 4px;
+                border: 1px solid rgba(255, 255, 255, 0.2);
+            }
+            QScrollBar::handle:vertical:hover {
+                background: rgba(66, 133, 244, 0.8);
+                border: 1px solid rgba(255, 255, 255, 0.5);
+            }
+            QScrollBar::add-line:vertical {
+                height: 0px;
+                subcontrol-position: bottom;
+                subcontrol-origin: margin;
+            }
+            QScrollBar::sub-line:vertical {
+                height: 0px;
+                subcontrol-position: top;
+                subcontrol-origin: margin;
+            }
+            QScrollBar::up-arrow:vertical, QScrollBar::down-arrow:vertical {
+                background: none;
+                height: 0px;
+            }
+            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+                background: transparent;
+            }
+        """)
     
     def connect_signals(self):
         """Connect signals from the sequence generator."""
@@ -304,16 +511,18 @@ class ChatPanel(QWidget):
         
         if is_generating:
             # Show progress indicators
-            self.progress_bar.show()
-            self.loading_label.show()
-            self.loading_movie.start()
-            self.cancel_btn.show()
+            self.progress_container.show()
+            self.progress_bar_container.show()
+            self.progress_bar.setValue(0)
+            # Start timer-based animation
+            self.loading_timer.start(150)  # Update every 150ms for smooth animation
+            self.status_label.setText("Processing your request...")
         else:
             # Hide progress indicators
-            self.progress_bar.hide()
-            self.loading_label.hide()
-            self.loading_movie.stop()
-            self.cancel_btn.hide()
+            self.progress_container.hide()
+            self.progress_bar_container.hide()
+            # Stop timer-based animation
+            self.loading_timer.stop()
             self.status_label.setText("Ready")
     
     def on_sequence_generated_async(self, sequence, error):
@@ -420,7 +629,10 @@ class ChatPanel(QWidget):
         Args:
             progress: Progress percentage (0-100).
         """
-        self.progress_bar.setValue(progress)
+        if progress > 0 and progress < 100:
+            self.progress_bar.setValue(progress)
+        else:
+            self.progress_bar.setValue(0)
     
     def on_status_updated(self, status):
         """Handle status updates.
@@ -428,7 +640,8 @@ class ChatPanel(QWidget):
         Args:
             status: Status message.
         """
-        self.status_label.setText(status)
+        if status and status.strip():
+            self.status_label.setText(status)
     
     def validate_api_key(self):
         """Check if API key is provided, but don't validate it to save credits."""
@@ -591,4 +804,46 @@ class ChatPanel(QWidget):
                     sp["index"], sp["position"], sp["load"], sp["tolerance"], sp["enabled"]
                 )
         
-        return len(parsed_data["basic_info"]) > 0 or len(parsed_data["set_points"]) > 0 
+        return len(parsed_data["basic_info"]) > 0 or len(parsed_data["set_points"]) > 0
+    
+    def toggle_loading_indicator(self):
+        """Toggle the loading indicator appearance for animation effect."""
+        self.loading_state = (self.loading_state + 1) % 4
+        
+        # Use different border styles to create a rotation illusion
+        if self.loading_state == 0:
+            self.loading_indicator.setStyleSheet("""
+                #LoadingIndicator {
+                    background-color: transparent;
+                    border: 2px solid rgba(66, 133, 244, 0.2);
+                    border-top: 2px solid #4285F4;
+                    border-radius: 10px;
+                }
+            """)
+        elif self.loading_state == 1:
+            self.loading_indicator.setStyleSheet("""
+                #LoadingIndicator {
+                    background-color: transparent;
+                    border: 2px solid rgba(66, 133, 244, 0.2);
+                    border-right: 2px solid #4285F4;
+                    border-radius: 10px;
+                }
+            """)
+        elif self.loading_state == 2:
+            self.loading_indicator.setStyleSheet("""
+                #LoadingIndicator {
+                    background-color: transparent;
+                    border: 2px solid rgba(66, 133, 244, 0.2);
+                    border-bottom: 2px solid #4285F4;
+                    border-radius: 10px;
+                }
+            """)
+        else:
+            self.loading_indicator.setStyleSheet("""
+                #LoadingIndicator {
+                    background-color: transparent;
+                    border: 2px solid rgba(66, 133, 244, 0.2);
+                    border-left: 2px solid #4285F4;
+                    border-radius: 10px;
+                }
+            """) 
